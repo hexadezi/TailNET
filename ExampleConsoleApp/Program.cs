@@ -42,14 +42,14 @@ namespace ExampleConsoleApp
                 }
             }
 
-            tailNET.OnLineAddition += TailNET_OnLineAddition;
+            tailNET.LineAdded += TailNET_LineAdded;
 
             tailNET.Start();
 
             new ManualResetEventSlim(false).Wait();
         }
 
-        private static void TailNET_OnLineAddition(object sender, string e)
+        private static void TailNET_LineAdded(object sender, string e)
         {
             Console.WriteLine(e);
         }

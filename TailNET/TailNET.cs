@@ -33,7 +33,22 @@ public class TailNET
     /// <summary>
     /// Occurs when a new line is added to file.
     /// </summary>
-    public event EventHandler<string> OnLineAddition;
+    public event EventHandler<string> LineAdded;
+
+    /// <summary>
+    /// Occurs when the file is deleted
+    /// </summary>
+    public event EventHandler FileDeleted;
+
+    /// <summary>
+    /// Occurs when monitoring starts
+    /// </summary>
+    public event EventHandler Started;
+
+    /// <summary>
+    /// Occurs when monitoring stops
+    /// </summary>
+    public event EventHandler Stopped;
 
     #endregion Events
 
@@ -43,7 +58,9 @@ public class TailNET
     {
         if (!File.Exists(filePath))
         {
-            throw new FileNotFoundException($"Could not find file {filePath}");
+            FileDeleted?.Invoke(this, EventArgs.Empty);
+            Stop();
+            Debug.WriteLine("File deleted -> monitoring stopped");
         }
 
         file = new FileInfo(filePath);
@@ -94,6 +111,7 @@ public class TailNET
                 // If still initial
                 if (oldSize == -1)
                 {
+                    Debug.WriteLine("File still initial");
                     oldSize = file.Length;
                 }
 
@@ -106,23 +124,22 @@ public class TailNET
                     return;
                 }
 
-                Debug.WriteLine($"Initial file size: {oldSize}. New file size: {newSize}");
-
                 // If the current file size is smaller than the old size, the file has been emptied
                 // The old size will be set to the current smaller size and the buffer will be emptied
                 if (oldSize > newSize)
                 {
-                    Debug.WriteLine("New file size is smaller than the initial file size");
-                    Debug.WriteLine($"Reset initial file size to {newSize}");
+                    Debug.WriteLine($"File size has decreased -> Reset initial file size to {newSize}");
 
                     oldSize = newSize;
 
-                    Debug.WriteLine($"Reset buffer");
+                    Debug.WriteLine("Clear buffer");
 
                     buffer = String.Empty;
 
                     return;
                 }
+
+                Debug.WriteLine($"Old size {oldSize} | New size {newSize}");
 
                 using (FileStream stream = File.Open(file.FullName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
                 {
@@ -168,7 +185,7 @@ public class TailNET
                             // Fire the event and send each line
                             foreach (string line in lines)
                             {
-                                OnLineAddition?.Invoke(this, line.Trim());
+                                LineAdded?.Invoke(this, line.Trim());
                             }
                         }
                     }
@@ -196,12 +213,15 @@ public class TailNET
 
         if (ResetBeforeRestart)
         {
+            // The state of the file object has to be refreshed, to get the current file size
             file.Refresh();
             oldSize = file.Length;
-            Debug.WriteLine("File size resetted to " + oldSize);
+            Debug.WriteLine("Reset file size to " + oldSize);
         }
 
         timer.Start();
+        Started(this, EventArgs.Empty);
+        Debug.WriteLine("Monitoring started");
     }
 
     /// <summary>
@@ -215,6 +235,8 @@ public class TailNET
         }
 
         timer.Stop();
+        Stopped(this, EventArgs.Empty);
+        Debug.WriteLine("Monitoring stopped");
     }
 
     #endregion Methods

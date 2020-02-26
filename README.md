@@ -13,9 +13,9 @@ Create a new TailNET object with the path as an argument.
 ```
 TailNET tailNET = new TailNET(filePath);
 ```
-Subscribe to the OnLineAddition event. Event data is provided as string.
+Subscribe to the LineAdded event. Event data is provided as string.
 ```
-tailNET.OnLineAddition += TailNET_OnLineAddition;
+tailNET.LineAdded += TailNET_LineAdded;
 ```
 Start the monitoring
 ```
