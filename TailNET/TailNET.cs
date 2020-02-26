@@ -4,7 +4,7 @@ using System.IO;
 using System.Text;
 using System.Threading;
 using System.Timers;
-
+    
 public class TailNET
 {
     #region Fields
@@ -58,9 +58,7 @@ public class TailNET
     {
         if (!File.Exists(filePath))
         {
-            FileDeleted?.Invoke(this, EventArgs.Empty);
-            Stop();
-            Debug.WriteLine("File deleted -> monitoring stopped");
+            throw new FileNotFoundException($"Could not find file {filePath}");
         }
 
         file = new FileInfo(filePath);
@@ -94,14 +92,17 @@ public class TailNET
     #endregion Constructors
 
     #region Methods
-
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Stil", "IDE0063:Einfache using-Anweisung verwenden", Justification = "<Ausstehend>")]
     private void Timer_Elapsed(object sender, ElapsedEventArgs e)
     {
         if (!File.Exists(file.FullName))
         {
+            Stop();
+            FileDeleted?.Invoke(this, EventArgs.Empty);
+            Debug.WriteLine("File deleted");
             return;
         }
-
+        
         // Code will be skipped if still locked (processing running)
         if (Monitor.TryEnter(processingLock))
         {
@@ -185,7 +186,7 @@ public class TailNET
                             // Fire the event and send each line
                             foreach (string line in lines)
                             {
-                                LineAdded?.Invoke(this, line.Trim());
+                                LineAdded?.Invoke(this, line);
                             }
                         }
                     }
@@ -220,7 +221,7 @@ public class TailNET
         }
 
         timer.Start();
-        Started(this, EventArgs.Empty);
+        Started?.Invoke(this, EventArgs.Empty);
         Debug.WriteLine("Monitoring started");
     }
 
@@ -235,7 +236,7 @@ public class TailNET
         }
 
         timer.Stop();
-        Stopped(this, EventArgs.Empty);
+        Stopped?.Invoke(this, EventArgs.Empty);
         Debug.WriteLine("Monitoring stopped");
     }
 
