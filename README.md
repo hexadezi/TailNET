@@ -23,7 +23,7 @@ tailNET.Start();
 ```
 See the example application for a better understanding.
 
-## Noteworthy notices
+## Noteworthy
 - If the monitoring has already started and the file is deleted, it will not affect the monitoring. The monitoring is resumed, if the file exists again or is created.
 - If the file becomes smaller, it will be recognized and the monitoring will be reset to the new file size.
 
