@@ -6,7 +6,7 @@ TailNET is a small and simple library which will monitor a file and output appen
 - If the file becomes smaller, it will be recognized and the monitoring will be reset to the new file size.
 
 ## Target .NET Framework
-[.NET Framework 4.6.1](https://dotnet.microsoft.com/download)
+[.NET Core 3.1](https://dotnet.microsoft.com/download)
 
 ## Simple Usage
 Add a reference to your project.
