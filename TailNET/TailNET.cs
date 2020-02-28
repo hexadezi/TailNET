@@ -136,7 +136,7 @@ public class TailNET
                 // The old size will be set to the current smaller size and the buffer will be emptied
                 if (oldSize > newSize)
                 {
-                    Debug.WriteLine($"File size has decreased -> Reset initial file size to {newSize}");
+                    Debug.WriteLine($"File size has decreased. Reset initial file size to {newSize}");
 
                     oldSize = newSize;
 
@@ -149,16 +149,17 @@ public class TailNET
 
                 Debug.WriteLine($"Old size {oldSize} | New size {newSize}");
 
-                using (FileStream stream = File.Open(file.FullName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                using (FileStream fileStream = File.Open(file.FullName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
                 {
-                    using (StreamReader sr = new StreamReader(stream, encoding))
+                    using (StreamReader sr = new StreamReader(fileStream, encoding))
                     {
                         sr.BaseStream.Seek(oldSize, SeekOrigin.Begin);
-
+                        
                         while (!sr.EndOfStream)
                         {
                             buffer.Append((Char)sr.Read());
 
+                            // If the delimiter is bigger, we don't have to do anything.
                             if (buffer.Length >= delimiter.Length)
                             {
                                 // We check if the only last character of the delimiter and buffer are the same.

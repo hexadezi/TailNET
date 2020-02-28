@@ -2,7 +2,11 @@
 
   <PropertyGroup>
     <TargetFramework>netcoreapp3.1</TargetFramework>
-    <Copyright>Labo</Copyright>
+    <Copyright></Copyright>
+    <Product />
+    <Company>TailNET</Company>
+    <Authors>Labo</Authors>
+    <Version>1.1.0</Version>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
