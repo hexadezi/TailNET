@@ -24,7 +24,7 @@ tailNET.Start();
 See the example application for a better understanding.
 
 ## Noteworthy
-- If the file, the monitoring will stop. It can be restarted, if the file exists again or is created.
+- If the file is deleted, the monitoring will stop. It can be restarted, if the file exists again or is created.
 - If the file becomes smaller, it will be recognized and the monitoring will be reset to the new file size.
 
 ## Download
