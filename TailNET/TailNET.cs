@@ -4,7 +4,7 @@ using System.IO;
 using System.Text;
 using System.Threading;
 using System.Timers;
-    
+
 public class TailNET
 {
     #region Fields
@@ -14,7 +14,7 @@ public class TailNET
     private readonly System.Timers.Timer timer = new System.Timers.Timer() { Interval = 500 };
     private readonly Encoding encoding = Encoding.UTF8;
     private readonly object processingLock = new object();
-    private string buffer;
+    private readonly StringBuilder buffer = new StringBuilder();
     private long oldSize = -1;
 
     #endregion Fields
@@ -70,12 +70,18 @@ public class TailNET
     {
     }
 
-    public TailNET(string filepath, Encoding encoding) : this(filepath, Environment.NewLine, 500, encoding)
+    public TailNET(string filePath, Encoding encoding) : this(filePath, Environment.NewLine, 500, encoding)
     {
     }
 
     public TailNET(string filePath, string delimiter) : this(filePath)
     {
+        // Delimiter can not be null or empty. It would throw an exception  while processing.
+        if (delimiter is null || delimiter is "")
+        {
+            throw new ArgumentException("No null or empty string allowed");
+        }
+
         this.delimiter = delimiter;
     }
 
@@ -92,6 +98,7 @@ public class TailNET
     #endregion Constructors
 
     #region Methods
+
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Stil", "IDE0063:Einfache using-Anweisung verwenden", Justification = "<Ausstehend>")]
     private void Timer_Elapsed(object sender, ElapsedEventArgs e)
     {
@@ -102,7 +109,7 @@ public class TailNET
             Debug.WriteLine("File deleted");
             return;
         }
-        
+
         // Code will be skipped if still locked (processing running)
         if (Monitor.TryEnter(processingLock))
         {
@@ -112,8 +119,8 @@ public class TailNET
                 // If still initial
                 if (oldSize == -1)
                 {
-                    Debug.WriteLine("File still initial");
                     oldSize = file.Length;
+                    Debug.WriteLine("Initial file size set to " + oldSize);
                 }
 
                 // The current file size is needed
@@ -135,7 +142,7 @@ public class TailNET
 
                     Debug.WriteLine("Clear buffer");
 
-                    buffer = String.Empty;
+                    buffer.Clear();
 
                     return;
                 }
@@ -148,45 +155,25 @@ public class TailNET
                     {
                         sr.BaseStream.Seek(oldSize, SeekOrigin.Begin);
 
-                        string data = sr.ReadToEnd();
-
-                        // If it contains a delimiter, it has atleast one valid line
-                        if (data.Contains(delimiter, StringComparison.Ordinal))
+                        while (!sr.EndOfStream)
                         {
-                            // Get position of last occurence of a delimiter + delimiter size
-                            int lastIndexOfDelimiter = data.LastIndexOf(delimiter, StringComparison.Ordinal) + delimiter.Length;
+                            buffer.Append((Char)sr.Read());
 
-                            // Everything until last index of delimiter + delimiter size is valid, which means it
-                            // contains lines of text with a delimiter at the end. It will be saved in a temp variable
-                            // together with the buffer data.
-                            string validTempDATA = buffer + data.Substring(0, lastIndexOfDelimiter);
-
-                            // We save the what's left over in the buffer
-                            buffer = data.Substring(lastIndexOfDelimiter);
-
-                            // Assign the valid value of the temp variable back to the data variable.
-                            data = validTempDATA;
-                        }
-                        else
-                        {
-                            // If no delimiter found, the data does not contain a valid line.
-                            // Therefore it is added to the buffer.
-                            buffer += data;
-
-                            // The data variable is set to empty to preven further processing
-                            data = string.Empty;
-                        }
-
-                        if (!string.IsNullOrEmpty(data))
-                        {
-                            // The data will be splitted into substrings with the delimiter as separator
-                            // Empty entries will be removed
-                            string[] lines = data.Split(new[] { delimiter }, StringSplitOptions.RemoveEmptyEntries);
-
-                            // Fire the event and send each line
-                            foreach (string line in lines)
+                            if (buffer.Length >= delimiter.Length)
                             {
-                                LineAdded?.Invoke(this, line);
+                                // We check if the only last character of the delimiter and buffer are the same.
+                                // If they are not equal, no further processing is needed.
+                                // This way the performance can be improved drastically.
+                                // If delimiter is null or empty, it will throw an exception.
+                                if (delimiter[^1] == buffer[^1])
+                                {
+                                    if (buffer.ToString().EndsWith(delimiter, StringComparison.Ordinal))
+                                    {
+                                        buffer.Remove(buffer.Length - delimiter.Length, delimiter.Length);
+                                        LineAdded?.Invoke(this, buffer.ToString());
+                                        buffer.Clear();
+                                    }
+                                }
                             }
                         }
                     }
@@ -212,7 +199,7 @@ public class TailNET
             return;
         }
 
-        if (ResetBeforeRestart)
+        if (ResetBeforeRestart && oldSize != -1)
         {
             // The state of the file object has to be refreshed, to get the current file size
             file.Refresh();
