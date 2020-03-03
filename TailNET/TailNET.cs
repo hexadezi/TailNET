@@ -160,7 +160,7 @@ public class TailNET
 					// If the delimiter is bigger, we don't have to do anything.
 					if (buffer.Length >= delimiter.Length)
 					{
-						// We check if the only last character of the delimiter and buffer are the same.
+						// We only check if the last character of the delimiter and buffer are the same.
 						// If they are not equal, no further processing is needed.
 						// This way the performance can be improved drastically.
 						// If delimiter is null or empty, it will throw an exception.
@@ -170,22 +170,33 @@ public class TailNET
 							{
 								buffer.Remove(buffer.Length - delimiter.Length, delimiter.Length);
 
-								try
+								EventHandler<string> eventHandler = null;
+
+								// We lock the resource to make the call to the delegate thread safe
+								lock (this)
 								{
-									LineAdded?.Invoke(this, buffer.ToString());
+									eventHandler = LineAdded;
 								}
-								// If an unexpected exception occurs, we set the old value
-								// higher so that we do not get into an infinite loop.
-								// We only add up the length of the one line in buffer,
-								// so we still have the possibility to pass the other lines.
-								catch (Exception)
+
+								if (eventHandler != null)
 								{
-									oldSize += buffer.Length + delimiter.Length;
+									// We iterate through the invocation list and invoke each delegate separately
+									// If an exception occurs, the other delegates are still called.
+									foreach (EventHandler<string> handler in eventHandler.GetInvocationList())
+									{
+										try
+										{
+											handler(this, buffer.ToString());
+										}
+										catch (Exception ex)
+										{
+											Debug.WriteLine($"Error in handler {handler.Method.Name} in class {handler.Method.DeclaringType}: {ex.Message}");
+											Trace.WriteLine($"Error in handler {handler.Method.Name} in class {handler.Method.DeclaringType}: {ex.Message}");
+										}
+									}
 								}
-								finally
-								{
-									buffer.Clear();
-								}
+
+								buffer.Clear();
 							}
 						}
 					}
