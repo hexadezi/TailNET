@@ -99,7 +99,7 @@ public class TailNET
 
 	#region Methods
 
-	[System.Diagnostics.CodeAnalysis.SuppressMessage("Stil", "IDE0063:Einfache using-Anweisung verwenden", Justification = "<Ausstehend>")]
+	[System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "<Ausstehend>")]
 	private void Timer_Elapsed(object sender, ElapsedEventArgs e)
 	{
 		if (!File.Exists(file.FullName))
@@ -149,53 +149,42 @@ public class TailNET
 
 				Debug.WriteLine($"Old size {oldSize} | New size {newSize}");
 
-				using (FileStream fileStream = File.Open(file.FullName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+				using FileStream fileStream = File.Open(file.FullName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+				using StreamReader sr = new StreamReader(fileStream, encoding);
+				sr.BaseStream.Seek(oldSize, SeekOrigin.Begin);
+
+				while (!sr.EndOfStream)
 				{
-					using (StreamReader sr = new StreamReader(fileStream, encoding))
+					buffer.Append((Char)sr.Read());
+
+					// If the delimiter is bigger, we don't have to do anything.
+					if (buffer.Length >= delimiter.Length)
 					{
-						sr.BaseStream.Seek(oldSize, SeekOrigin.Begin);
-
-						while (!sr.EndOfStream)
+						// We check if the only last character of the delimiter and buffer are the same.
+						// If they are not equal, no further processing is needed.
+						// This way the performance can be improved drastically.
+						// If delimiter is null or empty, it will throw an exception.
+						if (delimiter[^1] == buffer[^1])
 						{
-							buffer.Append((Char)sr.Read());
-
-							// If the delimiter is bigger, we don't have to do anything.
-							if (buffer.Length >= delimiter.Length)
+							if (buffer.ToString().EndsWith(delimiter, StringComparison.Ordinal))
 							{
-								// We check if the only last character of the delimiter and buffer are the same.
-								// If they are not equal, no further processing is needed.
-								// This way the performance can be improved drastically.
-								// If delimiter is null or empty, it will throw an exception.
-								if (delimiter[^1] == buffer[^1])
+								buffer.Remove(buffer.Length - delimiter.Length, delimiter.Length);
+
+								try
 								{
-									if (buffer.ToString().EndsWith(delimiter, StringComparison.Ordinal))
-									{
-										buffer.Remove(buffer.Length - delimiter.Length, delimiter.Length);
-										try
-										{
-											LineAdded?.Invoke(this, buffer.ToString());
-										}
-										catch (Exception ex)
-										{
-											Debug.WriteLine("Unhandled exception catched:");
-											Debug.Indent();
-											Debug.WriteLine(ex.Message);
-											Debug.WriteLine(ex.StackTrace);
-											Debug.Unindent();
-											Debug.WriteLine("Doing some cleanup");
-											Debug.WriteLine("Clear buffer");
-
-											// If we get an unexpected exception, we have to clear buffer and set the oldSize to newSize
-											// otherwise we get in an infinit loop. After that we throw the exception.
-											buffer.Clear();
-
-											Debug.WriteLine("Set oldSize to newSize");
-											oldSize = newSize;
-											
-											throw;
-										}
-										buffer.Clear();
-									}
+									LineAdded?.Invoke(this, buffer.ToString());
+								}
+								// If an unexpected exception occurs, we set the old value
+								// higher so that we do not get into an infinite loop.
+								// We only add up the length of the one line in buffer,
+								// so we still have the possibility to pass the other lines.
+								catch (Exception)
+								{
+									oldSize += buffer.Length + delimiter.Length;
+								}
+								finally
+								{
+									buffer.Clear();
 								}
 							}
 						}

@@ -6,6 +6,7 @@ namespace ExampleConsoleApp
 {
     class Program
     {
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "<Ausstehend>")]
         static void Main(string[] args)
         {
             TailNET tailNET = null;
