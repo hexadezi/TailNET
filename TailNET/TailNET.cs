@@ -5,6 +5,9 @@ using System.Text;
 using System.Threading;
 using System.Timers;
 
+/// <summary>
+/// A library to monitor the appended data to a file like tail -f.
+/// </summary>
 public class TailNET
 {
 	#region Fields
@@ -54,6 +57,10 @@ public class TailNET
 
 	#region Constructors
 
+	/// <summary>
+	/// Initializes a new instance of the <see cref="TailNET"/> class.
+	/// </summary>
+	/// <param name="filePath">The file path.</param>
 	public TailNET(string filePath)
 	{
 		if (!File.Exists(filePath))
@@ -66,14 +73,29 @@ public class TailNET
 		timer.Elapsed += Timer_Elapsed;
 	}
 
+	/// <summary>
+	/// Initializes a new instance of the <see cref="TailNET"/> class.
+	/// </summary>
+	/// <param name="filePath">The file path.</param>
+	/// <param name="interval">The interval. If not specified, 500 ms is defined as default.</param>
 	public TailNET(string filePath, int interval) : this(filePath, Environment.NewLine, interval)
 	{
 	}
 
+	/// <summary>
+	/// Initializes a new instance of the <see cref="TailNET"/> class.
+	/// </summary>
+	/// <param name="filePath">The file path.</param>
+	/// <param name="encoding">The encoding. If not specified, UTF8 is defined as default.</param>
 	public TailNET(string filePath, Encoding encoding) : this(filePath, Environment.NewLine, 500, encoding)
 	{
 	}
 
+	/// <summary>
+	/// Initializes a new instance of the <see cref="TailNET"/> class.
+	/// </summary>
+	/// <param name="filePath">The file path.</param>
+	/// <param name="delimiter">The delimiter. If not specified, Environment.NewLine is defined as default.</param>
 	public TailNET(string filePath, string delimiter) : this(filePath)
 	{
 		// Delimiter can not be null or empty. It would throw an exception  while processing.
@@ -85,11 +107,24 @@ public class TailNET
 		this.delimiter = delimiter;
 	}
 
+	/// <summary>
+	/// Initializes a new instance of the <see cref="TailNET"/> class.
+	/// </summary>
+	/// <param name="filePath">The file path.</param>
+	/// <param name="delimiter">The delimiter. If not specified, Environment.NewLine is defined as default.</param>
+	/// <param name="interval">The interval. If not specified, 500 ms is defined as default.</param>
 	public TailNET(string filePath, string delimiter, int interval) : this(filePath, delimiter)
 	{
 		timer.Interval = interval;
 	}
 
+	/// <summary>
+	/// Initializes a new instance of the <see cref="TailNET"/> class.
+	/// </summary>
+	/// <param name="filePath">The file path.</param>
+	/// <param name="delimiter">The delimiter. If not specified, Environment.NewLine is defined as default.</param>
+	/// <param name="interval">The interval. If not specified, 500 ms is defined as default.</param>
+	/// <param name="encoding">The encoding. If not specified, UTF8 is defined as default.</param>
 	public TailNET(string filePath, string delimiter, int interval, Encoding encoding) : this(filePath, delimiter, interval)
 	{
 		this.encoding = encoding;
@@ -99,6 +134,11 @@ public class TailNET
 
 	#region Methods
 
+	/// <summary>
+	/// The method that is called when the timer ticks.
+	/// </summary>
+	/// <param name="sender">The sender.</param>
+	/// <param name="e">The elapsed event args.</param>
 	[System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "<Ausstehend>")]
 	private void Timer_Elapsed(object sender, ElapsedEventArgs e)
 	{
