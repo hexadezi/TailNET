@@ -53,7 +53,6 @@ namespace ExampleConsoleApp
 
 		private static void TailNET_LineAdded_FIRST(object sender, string e)
 		{
-			Int32.Parse(e);
 			Console.WriteLine(e);
 		}
 

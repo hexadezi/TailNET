@@ -25,7 +25,8 @@ public class TailNET
 	#region Properties
 
 	/// <summary>
-	/// Determines whether the file size is reset before restarting. If true, all changes between stop and start are discarded.
+	/// Determines whether the file size is reset before restarting.
+	/// If true, all changes between stop and start are discarded.
 	/// </summary>
 	public bool ResetBeforeRestart { get; set; } = true;
 
@@ -70,7 +71,7 @@ public class TailNET
 
 		file = new FileInfo(filePath);
 
-		timer.Elapsed += Timer_Elapsed;
+		timer.Elapsed += Tick;
 	}
 
 	/// <summary>
@@ -138,116 +139,159 @@ public class TailNET
 	/// The method that is called when the timer ticks.
 	/// </summary>
 	/// <param name="sender">The sender.</param>
-	/// <param name="e">The elapsed event args.</param>
+	/// <param name="e">The timer event args.</param>
 	[System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "<Ausstehend>")]
-	private void Timer_Elapsed(object sender, ElapsedEventArgs e)
+	private void Tick(object sender, ElapsedEventArgs e)
 	{
 		if (!File.Exists(file.FullName))
 		{
 			Stop();
-			FileDeleted?.Invoke(this, EventArgs.Empty);
+			FireWithTry(FileDeleted);
 			Debug.WriteLine("File deleted");
 			return;
 		}
 
-		// Code will be skipped if still locked (processing running)
-		if (Monitor.TryEnter(processingLock))
+		// Return if lock can not be aquired
+		if (!Monitor.TryEnter(processingLock))
 		{
-			// When the lock is obtained, start processing
-			try
+			return;
+		}
+		// When the lock is obtained, start processing
+		try
+		{
+			// If still initial
+			if (oldSize == -1)
 			{
-				// If still initial
-				if (oldSize == -1)
-				{
-					oldSize = file.Length;
-					Debug.WriteLine("Initial file size set to " + oldSize);
-				}
+				oldSize = file.Length;
+				Debug.WriteLine("Initial file size set to " + oldSize);
+			}
 
-				// The current file size is needed
-				long newSize = new FileInfo(file.FullName).Length;
+			// The current file size is needed
+			long newSize = new FileInfo(file.FullName).Length;
 
-				// If old size and current size are the same, we do not need further processing
-				if (oldSize == newSize)
-				{
-					return;
-				}
+			// If old size and current size are the same, we do not need further processing
+			if (oldSize == newSize)
+			{
+				return;
+			}
 
-				// If the current file size is smaller than the old size, the file has been emptied
-				// The old size will be set to the current smaller size and the buffer will be emptied
-				if (oldSize > newSize)
-				{
-					Debug.WriteLine($"File size has decreased. Reset initial file size to {newSize}");
-
-					oldSize = newSize;
-
-					Debug.WriteLine("Clear buffer");
-
-					buffer.Clear();
-
-					return;
-				}
-
-				Debug.WriteLine($"Old size {oldSize} | New size {newSize}");
-
-				using FileStream fileStream = File.Open(file.FullName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-				using StreamReader sr = new StreamReader(fileStream, encoding);
-				sr.BaseStream.Seek(oldSize, SeekOrigin.Begin);
-
-				while (!sr.EndOfStream)
-				{
-					buffer.Append((Char)sr.Read());
-
-					// If the delimiter is bigger, we don't have to do anything.
-					if (buffer.Length >= delimiter.Length)
-					{
-						// We only check if the last character of the delimiter and buffer are the same.
-						// If they are not equal, no further processing is needed.
-						// This way the performance can be improved drastically.
-						// If delimiter is null or empty, it will throw an exception.
-						if (delimiter[^1] == buffer[^1])
-						{
-							if (buffer.ToString().EndsWith(delimiter, StringComparison.Ordinal))
-							{
-								buffer.Remove(buffer.Length - delimiter.Length, delimiter.Length);
-
-								EventHandler<string> eventHandler = null;
-
-								// We lock the resource to make the call to the delegate thread safe
-								lock (this)
-								{
-									eventHandler = LineAdded;
-								}
-
-								if (eventHandler != null)
-								{
-									// We iterate through the invocation list and invoke each delegate separately
-									// If an exception occurs, the other delegates are still called.
-									foreach (EventHandler<string> handler in eventHandler.GetInvocationList())
-									{
-										try
-										{
-											handler(this, buffer.ToString());
-										}
-										catch (Exception ex)
-										{
-											Debug.WriteLine($"Error in handler {handler.Method.Name} in class {handler.Method.DeclaringType}: {ex.Message}");
-											Trace.WriteLine($"Error in handler {handler.Method.Name} in class {handler.Method.DeclaringType}: {ex.Message}");
-										}
-									}
-								}
-
-								buffer.Clear();
-							}
-						}
-					}
-				}
+			// If the current file size is smaller than the old size, the file has been emptied
+			// The old size will be set to the current smaller size and the buffer will be emptied
+			if (oldSize > newSize)
+			{
+				Debug.WriteLine($"File size has decreased. Reset file size to {newSize}");
 
 				oldSize = newSize;
+
+				Debug.WriteLine("Clear buffer");
+
+				buffer.Clear();
+
+				return;
 			}
-			finally
+
+			Debug.WriteLine($"Old size {oldSize.ToString().PadLeft(9, ' ')} | New size {newSize.ToString().PadLeft(9, ' ')}");
+
+			using FileStream fileStream = File.Open(file.FullName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+			using StreamReader sr = new StreamReader(fileStream, encoding);
+			sr.BaseStream.Seek(oldSize, SeekOrigin.Begin);
+
+			while (!sr.EndOfStream)
 			{
-				// Ensure that the lock is released.
-				Monitor.Exit(processingLock);
+				buffer.Append((Char)sr.Read());
+
+				// If the delimiter is bigger, we don't have to do anything.
+				if (delimiter.Length > buffer.Length)
+				{
+					continue;
+				}
+
+				// We only check if the last char of the delimiter and buffer.
+				// If they are not equal, no further processing is needed.
+				// This way the performance can be improved drastically.
+				// If delimiter is null or empty, it will throw an exception.
+				if (delimiter[^1] != buffer[^1])
+				{
+					continue;
+				}
+
+				if (!buffer.ToString().EndsWith(delimiter, StringComparison.Ordinal))
+				{
+					continue;
+				}
+
+				buffer.Remove(buffer.Length - delimiter.Length, delimiter.Length);
+
+				FireWithTry(LineAdded, buffer.ToString());
+
+				buffer.Clear();
+			}
+
+			oldSize = newSize;
+		}
+		finally
+		{
+			// Ensure that the lock is released.
+			Monitor.Exit(processingLock);
+		}
+	}
+
+	/// <summary>
+	/// A method, which will invoke each delegate.
+	/// Exceptions will be catched and the remaining
+	/// delegates will be invoked.
+	/// </summary>
+	/// <param name="eventHandler">A predefined delegate that represents an event handler method for an event.</param>
+	[System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "<Ausstehend>")]
+	public void FireWithTry(EventHandler eventHandler)
+	{
+		if (eventHandler != null)
+		{
+			//We iterate through the invocation list and invoke each delegate separately
+			//If an exception occurs, the other delegates are still called.
+			foreach (EventHandler handler in eventHandler.GetInvocationList())
+			{
+				try
+				{
+					handler(this, EventArgs.Empty);
+				}
+				catch (Exception ex)
+				{
+					Debug.WriteLine($"Error in handler {handler.Method.Name} in class {handler.Method.DeclaringType}: {ex.Message}");
+					Trace.WriteLine($"Error in handler {handler.Method.Name} in class {handler.Method.DeclaringType}: {ex.Message}");
+				}
+			}
+		}
+	}
+
+	/// <summary>
+	/// A method, which will invoke each delegate.
+	/// Exceptions will be catched and the remaining
+	/// delegates will be invoked.
+	/// </summary>
+	/// <typeparam name="T"></typeparam>
+	/// <param name="eventHandler">A predefined delegate that represents an event handler method for an event.</param>
+	/// <param name="e">An object that contains the event data.</param>
+	[System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "<Ausstehend>")]
+	public void FireWithTry<T>(EventHandler<T> eventHandler, T e)
+	{
+		if (eventHandler is null)
+		{
+			return;
+		}
+
+		//We iterate through the invocation list and invoke each delegate separately
+		//If an exception occurs, the other delegates are still called.
+		foreach (EventHandler<T> handler in eventHandler.GetInvocationList())
+		{
+			try
+			{
+				handler(this, e);
+			}
+			catch (Exception ex)
+			{
+				Debug.WriteLine($"Error in handler {handler.Method.Name} in class {handler.Method.DeclaringType}: {ex.Message}");
+				Trace.WriteLine($"Error in handler {handler.Method.Name} in class {handler.Method.DeclaringType}: {ex.Message}");
 			}
 		}
 	}
@@ -257,6 +301,13 @@ public class TailNET
 	/// </summary>
 	public void Start()
 	{
+		if (!File.Exists(file.FullName))
+		{
+			Debug.WriteLine($"File {file.FullName} not found. Returning.");
+			Trace.WriteLine($"File {file.FullName} not found. Returning.");
+			return;
+		}
+
 		if (timer.Enabled)
 		{
 			return;
@@ -264,14 +315,15 @@ public class TailNET
 
 		if (ResetBeforeRestart && oldSize != -1)
 		{
-			// The state of the file object has to be refreshed, to get the current file size
+			// The state of the file object has to be refreshed, 
+			// to get the current file size
 			file.Refresh();
 			oldSize = file.Length;
 			Debug.WriteLine("Reset file size to " + oldSize);
 		}
 
 		timer.Start();
-		Started?.Invoke(this, EventArgs.Empty);
+		FireWithTry(Started);
 		Debug.WriteLine("Monitoring started");
 	}
 
@@ -286,7 +338,7 @@ public class TailNET
 		}
 
 		timer.Stop();
-		Stopped?.Invoke(this, EventArgs.Empty);
+		FireWithTry(Stopped);
 		Debug.WriteLine("Monitoring stopped");
 	}
 
