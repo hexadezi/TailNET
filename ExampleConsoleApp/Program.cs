@@ -6,7 +6,6 @@ namespace ExampleConsoleApp
 {
 	internal class Program
 	{
-		[System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "<Ausstehend>")]
 		private static void Main(string[] args)
 		{
 			TailNET tailNET = null;
@@ -44,7 +43,6 @@ namespace ExampleConsoleApp
 			}
 
 			tailNET.LineAdded += TailNET_LineAdded_FIRST;
-			tailNET.LineAdded += TailNET_LineAdded_SECOND;
 
 			tailNET.Start();
 
@@ -54,11 +52,6 @@ namespace ExampleConsoleApp
 		private static void TailNET_LineAdded_FIRST(object sender, string e)
 		{
 			Console.WriteLine(e);
-		}
-
-		private static void TailNET_LineAdded_SECOND(object sender, string e)
-		{
-			Console.WriteLine("SECOND REACHED");
 		}
 	}
 }

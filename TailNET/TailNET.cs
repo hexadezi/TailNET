@@ -140,7 +140,6 @@ public class TailNET
 	/// </summary>
 	/// <param name="sender">The sender.</param>
 	/// <param name="e">The timer event args.</param>
-	[System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "<Ausstehend>")]
 	private void Tick(object sender, ElapsedEventArgs e)
 	{
 		if (!File.Exists(file.FullName))
@@ -190,7 +189,7 @@ public class TailNET
 				return;
 			}
 
-			Debug.WriteLine($"Old size {oldSize.ToString().PadLeft(9, ' ')} | New size {newSize.ToString().PadLeft(9, ' ')}");
+			Debug.WriteLine($"Old size {oldSize,9} | New size {newSize,9}");
 
 			using FileStream fileStream = File.Open(file.FullName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
 			using StreamReader sr = new StreamReader(fileStream, encoding);
@@ -242,7 +241,6 @@ public class TailNET
 	/// delegates will be invoked.
 	/// </summary>
 	/// <param name="eventHandler">A predefined delegate that represents an event handler method for an event.</param>
-	[System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "<Ausstehend>")]
 	public void FireWithTry(EventHandler eventHandler)
 	{
 		if (eventHandler != null)
@@ -272,7 +270,6 @@ public class TailNET
 	/// <typeparam name="T"></typeparam>
 	/// <param name="eventHandler">A predefined delegate that represents an event handler method for an event.</param>
 	/// <param name="e">An object that contains the event data.</param>
-	[System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "<Ausstehend>")]
 	public void FireWithTry<T>(EventHandler<T> eventHandler, T e)
 	{
 		if (eventHandler is null)
