@@ -29,7 +29,7 @@ namespace ExampleConsoleApp
 				while (true)
 				{
 					string s;
-					s = Console.ReadLine();
+					s = Console.ReadLine().Trim('"');
 					if (File.Exists(s))
 					{
 						tailNET = new TailNET(s);
