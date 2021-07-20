@@ -28,7 +28,7 @@ See the example application for a better understanding.
 - If the file becomes smaller, it will be recognized and the monitoring will be reset to the new file size.
 
 ## Download
-Download here: https://github.com/labo89/TailNET/releases
+Download here: https://github.com/hexadezi/TailNET/releases
 
 ## License
 This project is licensed under the MIT License - see the LICENSE file for details
